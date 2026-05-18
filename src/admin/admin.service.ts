@@ -1,14 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ProductsService } from '../products/products.service';
-import { OrdersService } from '../orders/orders.service';
+import { products } from '../products/products.data';
+import { orders } from '../orders/orders.data';
 
 @Injectable()
 export class AdminService {
-  constructor(
-    private productsService: ProductsService,
-    private ordersService: OrdersService,
-  ) {}
-
   private adminUsers = [
     { id: 1, username: 'admin', password: 'admin123', name: '管理员' }
   ];
@@ -32,8 +27,6 @@ export class AdminService {
   }
 
   async getStats() {
-    const products = await this.productsService.findAll();
-    const orders = await this.ordersService.findAll();
     const today = new Date().toDateString();
     const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === today);
     const todayRevenue = todayOrders.reduce((sum, o) => sum + Number(o.totalPrice), 0);
@@ -51,37 +44,55 @@ export class AdminService {
   }
 
   async getProducts() {
-    const products = await this.productsService.findAll();
     return { code: 200, data: products };
   }
 
   async createProduct(data: any) {
-    const product = await this.productsService.create(data);
-    return { code: 200, msg: '添加成功', data: product };
+    const newProduct = {
+      id: products.length + 1,
+      ...data,
+      createdAt: new Date()
+    };
+    products.push(newProduct);
+    return { code: 200, msg: '添加成功', data: newProduct };
   }
 
   async updateProduct(id: number, data: any) {
-    const product = await this.productsService.update(id, data);
-    return { code: 200, msg: '更新成功', data: product };
+    const index = products.findIndex(p => p.id === id);
+    if (index === -1) {
+      return { code: 404, msg: '商品不存在' };
+    }
+    products[index] = { ...products[index], ...data };
+    return { code: 200, msg: '更新成功', data: products[index] };
   }
 
   async deleteProduct(id: number) {
-    await this.productsService.delete(id);
+    const index = products.findIndex(p => p.id === id);
+    if (index === -1) {
+      return { code: 404, msg: '商品不存在' };
+    }
+    products.splice(index, 1);
     return { code: 200, msg: '删除成功' };
   }
 
   async getOrders() {
-    const orders = await this.ordersService.findAll();
     return { code: 200, data: orders };
   }
 
   async searchOrders(keyword: string) {
-    const orders = await this.ordersService.search(keyword);
-    return { code: 200, data: orders };
+    const results = orders.filter(o => 
+      o.orderNo?.includes(keyword) || 
+      o.pickupCode?.includes(keyword)
+    );
+    return { code: 200, data: results };
   }
 
   async updateOrder(id: number, data: any) {
-    const order = await this.ordersService.update(id, data);
-    return { code: 200, msg: '更新成功', data: order };
+    const index = orders.findIndex(o => o.id === id);
+    if (index === -1) {
+      return { code: 404, msg: '订单不存在' };
+    }
+    orders[index] = { ...orders[index], ...data };
+    return { code: 200, msg: '更新成功', data: orders[index] };
   }
 }
