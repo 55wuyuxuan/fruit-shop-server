@@ -28,8 +28,14 @@ export class AdminService {
 
   async getStats() {
     const today = new Date().toDateString();
-    const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === today);
-    const todayRevenue = todayOrders.reduce((sum, o) => sum + Number(o.totalPrice), 0);
+    const todayOrders = orders.filter(o => {
+      const createdAt = (o as any).createdAt || (o as any).createTime;
+      return createdAt && new Date(createdAt).toDateString() === today;
+    });
+    const todayRevenue = todayOrders.reduce((sum, o) => {
+      const price = (o as any).totalPrice || (o as any).total || 0;
+      return sum + Number(price);
+    }, 0);
     const pendingOrders = orders.filter(o => o.status === 'pending').length;
 
     return {
@@ -80,19 +86,20 @@ export class AdminService {
   }
 
   async searchOrders(keyword: string) {
-    const results = orders.filter(o => 
-      o.orderNo?.includes(keyword) || 
-      o.pickupCode?.includes(keyword)
-    );
+    const results = orders.filter(o => {
+      const orderNo = (o as any).orderNo || '';
+      const pickupCode = (o as any).pickupCode || '';
+      return orderNo.includes(keyword) || pickupCode.includes(keyword);
+    });
     return { code: 200, data: results };
   }
 
   async updateOrder(id: number, data: any) {
-    const index = orders.findIndex(o => o.id === id);
+    const index = orders.findIndex(o => String(o.id) === String(id));
     if (index === -1) {
       return { code: 404, msg: '订单不存在' };
     }
-    orders[index] = { ...orders[index], ...data };
+    orders[index] = { ...orders[index], ...data } as any;
     return { code: 200, msg: '更新成功', data: orders[index] };
   }
 }
