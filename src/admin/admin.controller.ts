@@ -1,86 +1,52 @@
-import { Controller, Post, Body, Get, Put, Delete, Param, Query, Headers, UnauthorizedException } from '@nestjs/common';
-
-interface Admin {
-  id: number;
-  username: string;
-  password: string;
-  name: string;
-}
-
-const admins: Admin[] = [
-  { id: 1, username: 'admin', password: 'admin123', name: '管理员' },
-];
+import { Controller, Post, Get, Put, Delete, Body, Param, Query } from '@nestjs/common';
+import { AdminService } from './admin.service';
 
 @Controller('admin')
 export class AdminController {
+  constructor(private readonly adminService: AdminService) {}
+
   @Post('login')
-  login(@Body() body: { username: string; password: string }) {
-    const admin = admins.find((a) => a.username === body.username && a.password === body.password);
-    if (!admin) {
-      return { code: 401, msg: '用户名或密码错误', data: null };
-    }
-    const token = Buffer.from(`${admin.username}:${Date.now()}`).toString('base64');
-    return {
-      code: 200,
-      msg: '登录成功',
-      data: {
-        token,
-        admin: { id: admin.id, username: admin.username, name: admin.name },
-      },
-    };
+  async login(@Body() body: { username: string; password: string }) {
+    return this.adminService.login(body.username, body.password);
   }
 
   @Get('stats')
-  getStats(@Headers('authorization') auth: string) {
-    if (!auth) throw new UnauthorizedException();
-    return {
-      code: 200,
-      data: {
-        todayOrders: 12,
-        todayRevenue: 368.5,
-        totalProducts: 45,
-        totalRevenue: 12580.0,
-        pendingOrders: 3,
-        completedOrders: 89,
-      },
-    };
+  async getStats() {
+    return this.adminService.getStats();
   }
 
   @Get('products')
-  getProducts(@Headers('authorization') auth: string) {
-    if (!auth) throw new UnauthorizedException();
-    const { products } = require('../products/products.data');
-    return { code: 200, data: { products } };
+  async getProducts() {
+    return this.adminService.getProducts();
   }
 
   @Post('products')
-  createProduct(@Headers('authorization') auth: string, @Body() body: any) {
-    if (!auth) throw new UnauthorizedException();
-    return { code: 200, data: { success: true } };
+  async createProduct(@Body() body: any) {
+    return this.adminService.createProduct(body);
   }
 
   @Put('products/:id')
-  updateProduct(@Headers('authorization') auth: string, @Param('id') id: string, @Body() body: any) {
-    if (!auth) throw new UnauthorizedException();
-    return { code: 200, data: { success: true } };
+  async updateProduct(@Param('id') id: string, @Body() body: any) {
+    return this.adminService.updateProduct(Number(id), body);
   }
 
   @Delete('products/:id')
-  deleteProduct(@Headers('authorization') auth: string, @Param('id') id: string) {
-    if (!auth) throw new UnauthorizedException();
-    return { code: 200, data: { success: true } };
+  async deleteProduct(@Param('id') id: string) {
+    return this.adminService.deleteProduct(Number(id));
   }
 
   @Get('orders')
-  getOrders(@Headers('authorization') auth: string, @Query('limit') limit?: string) {
-    if (!auth) throw new UnauthorizedException();
-    const { orders } = require('../orders/orders.data');
-    return { code: 200, data: { orders: limit ? orders.slice(0, parseInt(limit)) : orders } };
+  async getOrders() {
+    return this.adminService.getOrders();
+  }
+
+  @Get('orders/search')
+  async searchOrders(@Query('keyword') keyword: string) {
+    return this.adminService.searchOrders(keyword);
   }
 
   @Put('orders/:id')
-  updateOrder(@Headers('authorization') auth: string, @Param('id') id: string, @Body() body: any) {
-    if (!auth) throw new UnauthorizedException();
-    return { code: 200, data: { success: true } };
+  async updateOrder(@Param('id') id: string, @Body() body: any) {
+    return this.adminService.updateOrder(Number(id), body);
   }
 }
