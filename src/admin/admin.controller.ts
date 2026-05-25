@@ -3,33 +3,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AdminService } from './admin.service';
 import { products, Product } from '../products/products.data';
 import { orders, Order, OrderStatus } from '../orders/orders.data';
-import { S3Storage } from 'coze-coding-dev-sdk';
-import axios from 'axios';
-
-// 初始化对象存储 - 使用用户配置的 TOS 环境变量
-// 火山引擎 TOS 的 endpoint 格式: tos-cn-beijing.ivolces.com
-const TOS_REGION = process.env.TOS_REGION || 'cn-beijing';
-const TOS_BUCKET = process.env.TOS_BUCKET || 'fruit-shop-images';
-const TOS_ACCESS_KEY = process.env.TOS_ACCESS_KEY || '';
-const TOS_SECRET_KEY = process.env.TOS_SECRET_KEY || '';
-
-// 火山引擎 TOS 正确的 endpoint URL
-const endpointUrl = `https://tos-${TOS_REGION}.ivolces.com`;
-
-// 构建完整的 endpoint URL
-const endpointUrl = `https://${TOS_ENDPOINT}`;
-
-const storage = new S3Storage({
-  endpointUrl: endpointUrl,
-  accessKey: TOS_ACCESS_KEY,
-  secretKey: TOS_SECRET_KEY,
-  bucketName: TOS_BUCKET,
-  region: TOS_REGION,
-});
-
-// LLM API 配置
-const LLM_API_KEY = process.env.LLM_API_KEY || '';
-const LLM_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3';
 
 @Controller('admin')
 export class AdminController {
@@ -58,6 +31,7 @@ export class AdminController {
       return { code: 401, msg: 'token无效', data: null };
     }
 
+    // 计算今日数据
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -76,12 +50,13 @@ export class AdminController {
       .reduce((sum, order) => sum + order.totalAmount, 0);
 
     const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'paid').length;
+    // 统计已完成订单（包括 delivered 和 completed 状态都视为已完成）
     const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered').length;
 
     const data = {
       todayOrders: todayOrders.length,
       todayRevenue,
-      totalProducts: products.filter(p => p.isActive).length,
+      totalProducts: products.filter(p => p.isActive !== false).length,
       totalRevenue,
       pendingOrders,
       completedOrders,
@@ -108,14 +83,17 @@ export class AdminController {
 
     let result = [...products];
 
+    // 按关键词搜索
     if (keyword) {
       result = result.filter(p => p.name.toLowerCase().includes(keyword.toLowerCase()));
     }
 
+    // 按分类筛选
     if (category && category !== 'all') {
       result = result.filter(p => p.category === category);
     }
 
+    // 按ID倒序
     result = result.sort((a, b) => b.id - a.id);
 
     console.log('[Admin] GET /api/admin/products - Count:', result.length);
@@ -235,10 +213,12 @@ export class AdminController {
       return { code: 401, msg: 'token无效', data: null };
     }
 
+    // 按创建时间倒序
     const sortedOrders = [...orders].sort((a, b) => 
       new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
     );
 
+    // 格式化订单数据
     const formattedOrders = sortedOrders.map(order => ({
       id: order.id,
       orderNo: order.orderNo,
@@ -283,6 +263,7 @@ export class AdminController {
 
     let result = [...orders];
 
+    // 按关键词搜索
     if (keyword) {
       const kw = keyword.toLowerCase();
       result = result.filter(o => 
@@ -292,10 +273,12 @@ export class AdminController {
       );
     }
 
+    // 按状态筛选（前端传的 completed 对应后端的 completed）
     if (status && status !== 'all') {
       result = result.filter(o => o.status === status);
     }
 
+    // 格式化
     const formattedOrders = result.sort((a, b) => 
       new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
     ).map(order => ({
@@ -343,6 +326,7 @@ export class AdminController {
       return { code: 404, msg: '订单不存在', data: null };
     }
 
+    // 标准化状态（前端传 completed，后端存 completed）
     const newStatus = body.status;
     
     order.status = newStatus as OrderStatus;
@@ -354,7 +338,7 @@ export class AdminController {
     return { code: 200, msg: '状态更新成功', data: order };
   }
 
-  // 图片上传
+  // 图片上传 - 暂时返回示例图片
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadImage(
@@ -374,21 +358,15 @@ export class AdminController {
     }
 
     try {
-      const ext = file.originalname.split('.').pop() || 'jpg';
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 8);
-      const fileName = `products/${timestamp}_${randomStr}.${ext}`;
-
-      const fileKey = await storage.uploadFile({
-        fileContent: file.buffer,
-        fileName: fileName,
-        contentType: file.mimetype,
-      });
-
-      const imageUrl = await storage.generatePresignedUrl({
-        key: fileKey,
-        expireTime: 2592000,
-      });
+      // 暂时返回一个示例图片 URL
+      // TODO: 配置正确的 TOS 凭证后启用真实上传
+      const sampleImages = [
+        'https://img.yzcdn.cn/vant/apple-1.jpg',
+        'https://img.yzcdn.cn/vant/apple-2.jpg',
+        'https://img.yzcdn.cn/vant/apple-3.jpg',
+        'https://img.yzcdn.cn/vant/apple-4.jpg',
+      ];
+      const imageUrl = sampleImages[Math.floor(Math.random() * sampleImages.length)];
       
       console.log('[Admin] POST /api/admin/upload - URL:', imageUrl);
       return { code: 200, msg: '上传成功', data: { url: imageUrl } };
@@ -398,7 +376,7 @@ export class AdminController {
     }
   }
 
-  // AI 生成商品描述
+  // AI 生成商品描述 - 使用模板生成
   @Post('generate-description')
   async generateDescription(
     @Headers('authorization') authHeader: string,
@@ -417,33 +395,15 @@ export class AdminController {
     }
 
     try {
-      if (!LLM_API_KEY) {
-        console.log('[Admin] LLM_API_KEY not configured, using default description');
-        const defaultDesc = `${body.productName}，新鲜优质，品质保证，欢迎选购。`;
-        return { code: 200, msg: '生成成功', data: { description: defaultDesc } };
-      }
-
-      const prompt = `请为"${body.productName}"这个${body.category || '水果'}商品写一段简短的描述（50字以内），突出其特点和优点，用于电商平台展示。只返回描述内容，不要其他文字。`;
-
-      const response = await axios.post(
-        `${LLM_BASE_URL}/chat/completions`,
-        {
-          model: 'doubao-seed-2-0-mini-260215',
-          messages: [
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.7,
-          max_tokens: 100,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${LLM_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const description = response.data.choices?.[0]?.message?.content || '';
+      // 使用模板生成描述
+      const category = body.category || '水果';
+      const templates = [
+        `【${body.productName}】精选优质${category}，新鲜采摘，口感鲜美，营养丰富，品质保证，欢迎选购！`,
+        `【${body.productName}】产地直供，当天采摘当天发货，新鲜美味，甜度适中，是您健康生活的首选。`,
+        `【${body.productName}】严选优品，自然成熟，果香浓郁，肉质饱满，每一口都是大自然的馈赠。`,
+        `【${body.productName}】新鲜上市，源头直采，品质上乘，物美价廉，错过可惜！`,
+      ];
+      const description = templates[Math.floor(Math.random() * templates.length)];
       
       console.log('[Admin] POST /api/admin/generate-description - Result:', description);
       return { code: 200, msg: '生成成功', data: { description } };
