@@ -12,6 +12,8 @@ export interface Product {
   sales?: number;
   isHot?: boolean;
   isSeasonal?: boolean;
+  isActive?: boolean;
+  isRecommended?: boolean;
 }
 
 export interface Category {
@@ -19,35 +21,4 @@ export interface Category {
   name: string;
   icon: string;
   count?: number;
-}
-
-export interface Order {
-  id: string;
-  orderNo: string;
-  items: OrderItem[];
-  totalAmount: number;
-  status: 'pending' | 'paid' | 'preparing' | 'completed' | 'cancelled';
-  address: Address;
-  remark?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface OrderItem {
-  productId: number;
-  productName: string;
-  productImage: string;
-  price: number;
-  quantity: number;
-}
-
-export interface Address {
-  id: number;
-  name: string;
-  phone: string;
-  province: string;
-  city: string;
-  district: string;
-  detail: string;
-  isDefault: boolean;
 }

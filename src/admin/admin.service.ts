@@ -1,105 +1,36 @@
 import { Injectable } from '@nestjs/common';
-import { products } from '../products/products.data';
-import { orders } from '../orders/orders.data';
 
 @Injectable()
 export class AdminService {
-  private adminUsers = [
-    { id: 1, username: 'admin', password: 'admin123', name: '管理员' }
-  ];
+  // 模拟商家账号（实际应该存数据库）
+  private adminAccount = {
+    username: 'admin',
+    password: 'admin123', // 实际应该加密存储
+  };
 
+  // 商家登录
   async login(username: string, password: string) {
-    const user = this.adminUsers.find(
-      u => u.username === username && u.password === password
-    );
-    if (!user) {
-      return { code: 401, msg: '用户名或密码错误' };
-    }
-    const token = Buffer.from(`${username}:${Date.now()}`).toString('base64');
-    return {
-      code: 200,
-      msg: '登录成功',
-      data: {
+    if (username === this.adminAccount.username && password === this.adminAccount.password) {
+      const token = Buffer.from(`${username}:${Date.now()}`).toString('base64');
+      return {
         token,
-        user: { id: user.id, username: user.username, name: user.name }
-      }
-    };
-  }
-
-  async getStats() {
-    const today = new Date().toDateString();
-    const todayOrders = orders.filter(o => {
-      const createdAt = (o as any).createdAt || (o as any).createTime;
-      return createdAt && new Date(createdAt).toDateString() === today;
-    });
-    const todayRevenue = todayOrders.reduce((sum, o) => {
-      const price = (o as any).totalPrice || (o as any).total || 0;
-      return sum + Number(price);
-    }, 0);
-    const pendingOrders = orders.filter(o => o.status === 'pending').length;
-
-    return {
-      code: 200,
-      data: {
-        todayOrders: todayOrders.length,
-        todayRevenue,
-        totalProducts: products.length,
-        pendingOrders
-      }
-    };
-  }
-
-  async getProducts() {
-    return { code: 200, data: products };
-  }
-
-  async createProduct(data: any) {
-    const newProduct = {
-      id: products.length + 1,
-      ...data,
-      createdAt: new Date()
-    };
-    products.push(newProduct);
-    return { code: 200, msg: '添加成功', data: newProduct };
-  }
-
-  async updateProduct(id: number, data: any) {
-    const index = products.findIndex(p => p.id === id);
-    if (index === -1) {
-      return { code: 404, msg: '商品不存在' };
+        admin: {
+          username,
+          shopName: '河美果里果气',
+          avatar: '🍓',
+        },
+      };
     }
-    products[index] = { ...products[index], ...data };
-    return { code: 200, msg: '更新成功', data: products[index] };
+    return null;
   }
 
-  async deleteProduct(id: number) {
-    const index = products.findIndex(p => p.id === id);
-    if (index === -1) {
-      return { code: 404, msg: '商品不存在' };
+  // 验证token
+  validateToken(token: string) {
+    try {
+      const decoded = Buffer.from(token, 'base64').toString();
+      return decoded.includes(this.adminAccount.username);
+    } catch {
+      return false;
     }
-    products.splice(index, 1);
-    return { code: 200, msg: '删除成功' };
-  }
-
-  async getOrders() {
-    return { code: 200, data: orders };
-  }
-
-  async searchOrders(keyword: string) {
-    const results = orders.filter(o => {
-      const orderNo = (o as any).orderNo || '';
-      const pickupCode = (o as any).pickupCode || '';
-      return orderNo.includes(keyword) || pickupCode.includes(keyword);
-    });
-    return { code: 200, data: results };
-  }
-
-  async updateOrder(id: number, data: any) {
-    const index = orders.findIndex(o => String(o.id) === String(id));
-    if (index === -1) {
-      return { code: 404, msg: '订单不存在' };
-    }
-    orders[index] = { ...orders[index], ...data } as any;
-    return { code: 200, msg: '更新成功', data: orders[index] };
   }
 }
