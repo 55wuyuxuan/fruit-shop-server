@@ -7,11 +7,14 @@ import { S3Storage } from 'coze-coding-dev-sdk';
 import axios from 'axios';
 
 // 初始化对象存储 - 使用用户配置的 TOS 环境变量
-const TOS_ENDPOINT = process.env.TOS_ENDPOINT || 'tos-cn-beijing.volces.com';
-const TOS_BUCKET = process.env.TOS_BUCKET || 'fruit-shop-images';
+// 火山引擎 TOS 的 endpoint 格式: tos-cn-beijing.ivolces.com
 const TOS_REGION = process.env.TOS_REGION || 'cn-beijing';
+const TOS_BUCKET = process.env.TOS_BUCKET || 'fruit-shop-images';
 const TOS_ACCESS_KEY = process.env.TOS_ACCESS_KEY || '';
 const TOS_SECRET_KEY = process.env.TOS_SECRET_KEY || '';
+
+// 火山引擎 TOS 正确的 endpoint URL
+const endpointUrl = `https://tos-${TOS_REGION}.ivolces.com`;
 
 // 构建完整的 endpoint URL
 const endpointUrl = `https://${TOS_ENDPOINT}`;
